@@ -1,0 +1,7 @@
+_site/
+issue-result.md
+comment.md
+Kolekcja_gier_export.xlsx
+__pycache__/
+*.pyc
+.DS_Store

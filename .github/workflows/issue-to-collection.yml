@@ -1,0 +1,83 @@
+name: Dodaj/zmień grę ze zgłoszenia
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+# Dwa zgloszenia naraz nie moga pisac do CSV rownoczesnie - drugie poczeka.
+concurrency:
+  group: collection-write
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: >
+      contains(github.event.issue.labels.*.name, 'add-game') ||
+      contains(github.event.issue.labels.*.name, 'update-game')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Zastosuj zgłoszenie
+        id: apply
+        # Tresc zgloszenia idzie przez zmienna srodowiskowa, nigdy przez
+        # interpolacje ${{ }} w skrypcie powloki.
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          MODE: ${{ contains(github.event.issue.labels.*.name, 'add-game') && 'add' || 'update' }}
+        run: |
+          set +e
+          python3 scripts/issue_to_csv.py "$MODE"
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Sprawdź poprawność
+        if: steps.apply.outputs.status == '0'
+        run: python3 scripts/validate.py
+
+      - name: Zapisz zmianę
+        if: steps.apply.outputs.status == '0'
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          if git diff --quiet data/games.csv; then
+            echo "Brak zmian w pliku."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/games.csv
+          git commit -m "Kolekcja: $ISSUE_TITLE (#$ISSUE_NUMBER)"
+          git push
+
+      - name: Odpowiedz w zgłoszeniu
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          APPLY_STATUS: ${{ steps.apply.outputs.status }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          RESULT=$(cat issue-result.md 2>/dev/null || true)
+
+          if [ "$JOB_STATUS" = "success" ] && [ "$APPLY_STATUS" = "0" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "$RESULT"
+            gh issue close "$ISSUE_NUMBER"
+            exit 0
+          fi
+
+          {
+            echo "${RESULT:-❌ Nie udało się zastosować zgłoszenia.}"
+            echo
+            echo "Zgłoszenie zostaje otwarte. Szczegóły w [logu Actions]($RUN_URL)."
+          } > comment.md
+          gh issue comment "$ISSUE_NUMBER" --body-file comment.md

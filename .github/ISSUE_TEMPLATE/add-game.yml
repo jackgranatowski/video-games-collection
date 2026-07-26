@@ -1,0 +1,95 @@
+name: "➕ Dodaj grę"
+description: "Dopisz nową grę do kolekcji. Bot doda wiersz do data/games.csv i zamknie zgłoszenie."
+title: "Dodaj: "
+labels: ["add-game"]
+body:
+  - type: markdown
+    attributes:
+      value: "Wypełnij co wiesz — puste pola można uzupełnić później."
+
+  - type: input
+    id: title
+    attributes:
+      label: Tytuł
+      placeholder: "Elden Ring"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status
+      options:
+        - "backlog — do ogrania"
+        - "playing — ogrywam teraz"
+        - "want_to_try — chcę tylko spróbować"
+        - "upcoming — przed premierą"
+        - "limbo — zainteresowany, nie pali się"
+        - "completed — ukończone"
+        - "played — ograne, nieukończone"
+        - "not_interested — nie interesuje mnie"
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: year
+    attributes:
+      label: Rok premiery
+      placeholder: "2022"
+
+  - type: input
+    id: platforms
+    attributes:
+      label: Platformy
+      description: "Kilka oddziel średnikiem, np. PS5;Steam"
+      placeholder: "PS5"
+
+  - type: dropdown
+    id: owned
+    attributes:
+      label: Mam?
+      options: ["nie ustawiam", "yes — mam", "no — nie mam"]
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priorytet
+      options: ["nie ustawiam", "high — priorytetowo", "normal — na pewno, bez pośpiechu", "someday — kiedyś", "skip — olewam"]
+
+  - type: dropdown
+    id: vr
+    attributes:
+      label: VR
+      options: ["nie ustawiam", "no — bez VR", "yes — VR dostępne", "optional — VR opcjonalne", "required — tylko VR"]
+
+  - type: input
+    id: rating
+    attributes:
+      label: Ocena 1-5
+      placeholder: "4"
+
+  - type: input
+    id: finished_year
+    attributes:
+      label: Rok ukończenia
+      placeholder: "2026"
+
+  - type: input
+    id: hype
+    attributes:
+      label: Hype 1-10
+      placeholder: "8"
+
+  - type: input
+    id: tags
+    attributes:
+      label: Tagi
+      description: "Kilka oddziel średnikiem, np. vr;emerytura"
+      placeholder: "vr"
+
+  - type: input
+    id: notes
+    attributes:
+      label: Notatki
+      placeholder: "Local coop"
