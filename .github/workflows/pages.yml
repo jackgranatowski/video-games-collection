@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "data/games.csv"
+      - "data/metadata.csv"
       - "site/**"
       - "scripts/build_site.py"
       - ".github/workflows/pages.yml"

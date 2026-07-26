@@ -20,10 +20,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GAMES = ROOT / "data" / "games.csv"
+METADATA = ROOT / "data" / "metadata.csv"
 SITE = ROOT / "site"
 OUT = ROOT / "_site"
 
 # Kolejnosc pol w tablicach games.json - musi zgadzac sie z FIELDS w app.js.
+# Ostatnie cztery pochodza z RAWG (data/metadata.csv), reszta z games.csv.
 FIELDS = [
     "title",
     "year",
@@ -39,21 +41,44 @@ FIELDS = [
     "blog",
     "tags",
     "notes",
+    "genres",
+    "cover",
+    "metacritic",
+    "rawg_slug",
 ]
 
-LIST_FIELDS = {"platforms", "tags"}
-NUMERIC_FIELDS = {"year", "rating", "finished_year", "hype"}
+LIST_FIELDS = {"platforms", "tags", "genres"}
+NUMERIC_FIELDS = {"year", "rating", "finished_year", "hype", "metacritic"}
+
+# Pola dokladane z metadata.csv - games.csv nie ma na nie wplywu i odwrotnie.
+META_FIELDS = ["genres", "cover", "metacritic", "rawg_slug"]
+
+
+def read_metadata() -> dict[str, dict[str, str]]:
+    """Metadane z RAWG, po tytule. Brak pliku = strona po prostu bez okladek."""
+    if not METADATA.exists():
+        return {}
+    with METADATA.open(encoding="utf-8", newline="") as handle:
+        return {
+            row["title"]: row
+            for row in csv.DictReader(handle)
+            if row.get("rawg_id")  # niepewne trafienia pomijamy
+        }
 
 
 def main() -> int:
     with GAMES.open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
 
+    metadata = read_metadata()
+
     games = []
     for row in rows:
+        meta = metadata.get(row["title"], {})
         record = []
         for field in FIELDS:
-            value = (row.get(field) or "").strip()
+            source = meta if field in META_FIELDS else row
+            value = (source.get(field) or "").strip()
             if field in LIST_FIELDS:
                 record.append([part for part in value.split(";") if part])
             elif field in NUMERIC_FIELDS:
@@ -75,7 +100,12 @@ def main() -> int:
                 Counter(t for g in games for t in g[FIELDS.index("tags")]),
                 key=lambda name: name.lower(),
             ),
+            "genres": sorted(
+                Counter(g2 for g in games for g2 in g[FIELDS.index("genres")]),
+                key=lambda name: name.lower(),
+            ),
         },
+        "enriched": sum(1 for g in games if g[FIELDS.index("rawg_slug")]),
     }
 
     if OUT.exists():
@@ -87,7 +117,10 @@ def main() -> int:
     )
 
     size = (OUT / "games.json").stat().st_size
-    print(f"Zbudowano {OUT.relative_to(ROOT)}: {len(games)} gier, games.json {size // 1024} KB")
+    print(
+        f"Zbudowano {OUT.relative_to(ROOT)}: {len(games)} gier "
+        f"({payload['enriched']} z metadanymi RAWG), games.json {size // 1024} KB"
+    )
     return 0
 
 

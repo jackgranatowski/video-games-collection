@@ -1,0 +1,69 @@
+name: Wzbogać dane z RAWG
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Ile gier sprawdzić w tym przebiegu"
+        required: false
+        default: "300"
+      retry_unmatched:
+        description: "Ponowić próbę dla gier bez trafienia?"
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    # Co niedzielę o 5:00 UTC. Przy 300 grach na przebieg pełne pokrycie
+    # 5000 tytułów zajmuje ~4 miesiące i mieści się w darmowym limicie.
+    - cron: "0 5 * * 0"
+
+permissions:
+  contents: write
+
+# Wspolna kolejka z botem od zgloszen - dwa workflowy nie pchaja naraz.
+concurrency:
+  group: collection-write
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sprawdź, czy jest klucz
+        id: key
+        env:
+          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+        run: |
+          if [ -z "$RAWG_API_KEY" ]; then
+            echo "::warning::Brak sekretu RAWG_API_KEY — pomijam wzbogacanie."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pobierz metadane
+        if: steps.key.outputs.ok == 'true'
+        env:
+          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+          LIMIT: ${{ inputs.limit || '300' }}
+          RETRY: ${{ inputs.retry_unmatched && '--retry-unmatched' || '' }}
+        run: python3 scripts/enrich.py --limit "$LIMIT" $RETRY
+
+      - name: Zapisz zmiany
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          if git diff --quiet data/metadata.csv; then
+            echo "Brak nowych metadanych."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/metadata.csv
+          git commit -m "Metadane z RAWG: $(date +%Y-%m-%d)"
+          git push

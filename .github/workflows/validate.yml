@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - "data/games.csv"
+      - "data/metadata.csv"
       - "scripts/**"
       - ".github/workflows/validate.yml"
   pull_request:
     paths:
       - "data/games.csv"
+      - "data/metadata.csv"
       - "scripts/**"
   workflow_dispatch:
 

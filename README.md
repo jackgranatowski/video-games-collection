@@ -52,6 +52,8 @@ Jeden wiersz = jedna gra, 14 kolumn:
 | `tags` | `vr;emerytura` | Dowolne etykiety, średnik rozdziela |
 | `notes` | tekst | Cokolwiek |
 
+Okładki, gatunki i Metacritic mieszkają osobno w `data/metadata.csv` — patrz sekcja o API.
+
 ### Statusy
 
 | Status | Znaczenie | Ile |
@@ -79,6 +81,47 @@ chcesz wrócić po trofea, ma `status=completed` i `tags=wrócić`.
 
 ---
 
+## Metadane z API (RAWG)
+
+Okładki, gatunki, oceny Metacritic i daty premier dociągane są z
+[RAWG](https://rawg.io/apidocs) — darmowe 20 000 zapytań miesięcznie, klucz z rejestracji
+mailem. Wystarczy na pełne pokrycie 5025 gier z dużym zapasem.
+
+**API nigdy nie pisze do `data/games.csv`.** Dane z RAWG lądują w osobnym
+`data/metadata.csv` i są łączone z Twoimi po tytule dopiero przy budowaniu strony.
+Źle trafiony tytuł psuje najwyżej okładkę — Twoje oceny, statusy i notatki są nietykalne.
+
+### Włączenie
+
+1. Weź darmowy klucz na https://rawg.io/apidocs
+2. Settings → Secrets and variables → Actions → New secret → nazwa **`RAWG_API_KEY`**
+3. Actions → **Wzbogać dane z RAWG** → Run workflow
+
+Bez sekretu workflow kończy się ostrzeżeniem i nic nie robi — strona działa jak wcześniej,
+po prostu bez okładek.
+
+### Jak dobierane są trafienia
+
+Tytuł idzie do wyszukiwarki RAWG po oczyszczeniu z dopisków (`Elden Ring (+ Shadow of
+the erdtree)` → `Elden Ring`). Z pięciu kandydatów wybierany jest najpodobniejszy, a rok
+premiery z Twojego arkusza rozstrzyga remake'i — `Until Dawn` 2024 nie zostanie podmienione
+na wydanie z 2015. Poniżej progu podobieństwa **0.82** wpis zostaje pusty i oznaczony jako
+sprawdzony, żeby nie odpytywać o niego co tydzień. `Kangurek Kao` nie zostanie uznany za
+`Kao the Kangaroo` — lepiej brak danych niż złe dane.
+
+Kolumna `score` w `metadata.csv` pokazuje pewność trafienia, a `rawg_name` — pod jaką
+nazwą gra została znaleziona. Łatwo przejrzeć i poprawić ręcznie.
+
+```bash
+RAWG_API_KEY=... python3 scripts/enrich.py --limit 200    # kolejna porcja
+RAWG_API_KEY=... python3 scripts/enrich.py --retry-unmatched --limit 50
+python3 scripts/enrich.py --dry-run                       # co by poszło do API
+```
+
+Workflow chodzi też sam w każdą niedzielę po 300 gier.
+
+---
+
 ## Skrypty
 
 Wymagają Pythona 3.11+; do arkuszy `pip install openpyxl`.
@@ -88,6 +131,7 @@ python3 scripts/validate.py          # sprawdź CSV (używane przez CI)
 python3 scripts/validate.py --fix    # posortuj alfabetycznie i zapisz
 python3 scripts/build_site.py        # zbuduj stronę do _site/
 python3 scripts/export_xlsx.py       # CSV -> Kolekcja_gier_export.xlsx
+python3 scripts/enrich.py --dry-run  # co poszłoby do RAWG
 python3 scripts/migrate_xlsx.py      # jednorazowa migracja z oryginalnego arkusza
 
 python3 -m http.server -d _site 8000 # podgląd strony lokalnie
@@ -112,8 +156,9 @@ formularze, walidacja i eksport działają tak samo.
 ## Co strona potrafi
 
 - Szukanie po tytule, platformie, tagach i notatkach (wiele słów naraz)
-- Filtry: status, platforma, tag, VR, posiadanie, priorytet, zakres lat, minimalna ocena
-- Sortowanie po tytule, roku, ocenie, hype i roku ukończenia
+- Filtry: status, platforma, tag, gatunek, VR, posiadanie, priorytet, zakres lat, ocena
+- Sortowanie po tytule, roku, ocenie, Metacriticu, hype i roku ukończenia
+- Okładki, gatunki i oceny Metacritic z RAWG; tytuł linkuje do strony gry
 - Stan filtrów zapisuje się w adresie — link do „wszystkie gry VR, których nie mam"
   można wysłać albo dodać do zakładek
 - Motyw jasny/ciemny, działa na telefonie
