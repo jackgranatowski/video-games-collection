@@ -52,7 +52,8 @@ Jeden wiersz = jedna gra, 14 kolumn:
 | `tags` | `vr;emerytura` | Dowolne etykiety, średnik rozdziela |
 | `notes` | tekst | Cokolwiek |
 
-Okładki, gatunki i Metacritic mieszkają osobno w `data/metadata.csv` — patrz sekcja o API.
+Okładki, gatunki, oceny krytyków i czas przejścia mieszkają osobno
+w `data/metadata.csv` — patrz sekcja o API.
 
 ### Statusy
 
@@ -81,40 +82,54 @@ chcesz wrócić po trofea, ma `status=completed` i `tags=wrócić`.
 
 ---
 
-## Metadane z API (RAWG)
+## Metadane z API
 
-Okładki, gatunki, oceny Metacritic i daty premier dociągane są z
-[RAWG](https://rawg.io/apidocs) — darmowe 20 000 zapytań miesięcznie, klucz z rejestracji
-mailem. Wystarczy na pełne pokrycie 5025 gier z dużym zapasem.
+Okładki, gatunki, oceny krytyków i średnie czasy przejścia dociągane są z dwóch
+darmowych źródeł, próbowanych po kolei — **pierwsze pewne trafienie wygrywa**:
 
-**API nigdy nie pisze do `data/games.csv`.** Dane z RAWG lądują w osobnym
+| | Klucz | Limit | Co wnosi |
+|---|---|---|---|
+| **RAWG** | `RAWG_API_KEY` | 20 000/mies. | 500 tys. gier, wszystkie platformy, **średni czas gry**, Metacritic |
+| **IGDB** | `IGDB_CLIENT_ID` + `IGDB_CLIENT_SECRET` | 4 zapytania/s, bez limitu miesięcznego | Prawdziwe okładki pudełkowe, lepsze pokrycie retro i konsol |
+
+Wystarczy skonfigurować jedno — brakujące źródło jest po cichu pomijane. Bez żadnego
+strona działa jak wcześniej, po prostu bez okładek.
+
+**API nigdy nie pisze do `data/games.csv`.** Dane z zewnątrz lądują w osobnym
 `data/metadata.csv` i są łączone z Twoimi po tytule dopiero przy budowaniu strony.
 Źle trafiony tytuł psuje najwyżej okładkę — Twoje oceny, statusy i notatki są nietykalne.
 
 ### Włączenie
 
-1. Weź darmowy klucz na https://rawg.io/apidocs
-2. Settings → Secrets and variables → Actions → New secret → nazwa **`RAWG_API_KEY`**
-3. Actions → **Wzbogać dane z RAWG** → Run workflow
+**RAWG:** klucz z https://rawg.io/apidocs (rejestracja mailem) → Settings → Secrets and
+variables → Actions → nowy sekret `RAWG_API_KEY`.
 
-Bez sekretu workflow kończy się ostrzeżeniem i nic nie robi — strona działa jak wcześniej,
-po prostu bez okładek.
+**IGDB:** https://dev.twitch.tv/console/apps → Register Your Application (dowolna nazwa,
+OAuth Redirect URL `http://localhost`, kategoria Application Integration) → skopiuj
+Client ID i wygeneruj Client Secret → dwa sekrety: `IGDB_CLIENT_ID` i `IGDB_CLIENT_SECRET`.
+
+Potem Actions → **Wzbogać dane z API** → Run workflow.
 
 ### Jak dobierane są trafienia
 
-Tytuł idzie do wyszukiwarki RAWG po oczyszczeniu z dopisków (`Elden Ring (+ Shadow of
-the erdtree)` → `Elden Ring`). Z pięciu kandydatów wybierany jest najpodobniejszy, a rok
-premiery z Twojego arkusza rozstrzyga remake'i — `Until Dawn` 2024 nie zostanie podmienione
-na wydanie z 2015. Poniżej progu podobieństwa **0.82** wpis zostaje pusty i oznaczony jako
-sprawdzony, żeby nie odpytywać o niego co tydzień. `Kangurek Kao` nie zostanie uznany za
-`Kao the Kangaroo` — lepiej brak danych niż złe dane.
+Tytuł idzie do wyszukiwarki po oczyszczeniu z dopisków (`Elden Ring (+ Shadow of the
+erdtree)` → `Elden Ring`). Z pięciu kandydatów wybierany jest najpodobniejszy, a rok
+premiery z Twojego arkusza rozstrzyga remake'i — `Until Dawn` 2024 nie zostanie
+podmienione na wydanie z 2015. Poniżej progu podobieństwa **0.82** wpis zostaje pusty
+i oznaczony jako sprawdzony, żeby nie odpytywać o niego co tydzień. `Kangurek Kao`
+nie zostanie uznany za `Kao the Kangaroo` — lepiej brak danych niż złe dane.
 
-Kolumna `score` w `metadata.csv` pokazuje pewność trafienia, a `rawg_name` — pod jaką
-nazwą gra została znaleziona. Łatwo przejrzeć i poprawić ręcznie.
+Kolumna `score` w `metadata.csv` pokazuje pewność dopasowania, `source` — które źródło
+wygrało, a `source_name` — pod jaką nazwą gra została znaleziona. Łatwo przejrzeć
+i poprawić ręcznie.
+
+Uwaga na dwie różnice między źródłami: IGDB nie zwraca czasu gry (RAWG tak), a w kolumnie
+`metacritic` trzyma `aggregated_rating`, czyli własną średnią ocen krytyków — ta sama
+skala 0–100, ale nie ten sam wskaźnik co Metacritic.
 
 ```bash
-RAWG_API_KEY=... python3 scripts/enrich.py --limit 200    # kolejna porcja
-RAWG_API_KEY=... python3 scripts/enrich.py --retry-unmatched --limit 50
+RAWG_API_KEY=... python3 scripts/enrich.py --limit 200
+python3 scripts/enrich.py --only igdb --retry-unmatched --limit 50
 python3 scripts/enrich.py --dry-run                       # co by poszło do API
 ```
 
@@ -131,7 +146,7 @@ python3 scripts/validate.py          # sprawdź CSV (używane przez CI)
 python3 scripts/validate.py --fix    # posortuj alfabetycznie i zapisz
 python3 scripts/build_site.py        # zbuduj stronę do _site/
 python3 scripts/export_xlsx.py       # CSV -> Kolekcja_gier_export.xlsx
-python3 scripts/enrich.py --dry-run  # co poszłoby do RAWG
+python3 scripts/enrich.py --dry-run  # co poszłoby do API
 python3 scripts/migrate_xlsx.py      # jednorazowa migracja z oryginalnego arkusza
 
 python3 -m http.server -d _site 8000 # podgląd strony lokalnie
@@ -156,9 +171,10 @@ formularze, walidacja i eksport działają tak samo.
 ## Co strona potrafi
 
 - Szukanie po tytule, platformie, tagach i notatkach (wiele słów naraz)
-- Filtry: status, platforma, tag, gatunek, VR, posiadanie, priorytet, zakres lat, ocena
-- Sortowanie po tytule, roku, ocenie, Metacriticu, hype i roku ukończenia
-- Okładki, gatunki i oceny Metacritic z RAWG; tytuł linkuje do strony gry
+- Filtry: status, platforma, tag, gatunek, VR, posiadanie, priorytet, lata, ocena, długość
+- Sortowanie po tytule, roku, ocenie, Metacriticu, długości, hype i roku ukończenia
+- Okładki, gatunki, oceny i czas przejścia z API; tytuł linkuje do strony gry
+- Filtr długości („do 10h / 10–30h / 30h+") pomaga wybrać coś z 673-tytułowej kolejki
 - Stan filtrów zapisuje się w adresie — link do „wszystkie gry VR, których nie mam"
   można wysłać albo dodać do zakładek
 - Motyw jasny/ciemny, działa na telefonie

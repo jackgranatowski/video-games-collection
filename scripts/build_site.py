@@ -44,25 +44,27 @@ FIELDS = [
     "genres",
     "cover",
     "metacritic",
-    "rawg_slug",
+    "playtime",
+    "source",
+    "source_slug",
 ]
 
 LIST_FIELDS = {"platforms", "tags", "genres"}
-NUMERIC_FIELDS = {"year", "rating", "finished_year", "hype", "metacritic"}
+NUMERIC_FIELDS = {"year", "rating", "finished_year", "hype", "metacritic", "playtime"}
 
 # Pola dokladane z metadata.csv - games.csv nie ma na nie wplywu i odwrotnie.
-META_FIELDS = ["genres", "cover", "metacritic", "rawg_slug"]
+META_FIELDS = ["genres", "cover", "metacritic", "playtime", "source", "source_slug"]
 
 
 def read_metadata() -> dict[str, dict[str, str]]:
-    """Metadane z RAWG, po tytule. Brak pliku = strona po prostu bez okladek."""
+    """Metadane z RAWG/IGDB, po tytule. Brak pliku = strona bez okladek."""
     if not METADATA.exists():
         return {}
     with METADATA.open(encoding="utf-8", newline="") as handle:
         return {
             row["title"]: row
             for row in csv.DictReader(handle)
-            if row.get("rawg_id")  # niepewne trafienia pomijamy
+            if row.get("source_id")  # niepewne trafienia pomijamy
         }
 
 
@@ -105,7 +107,7 @@ def main() -> int:
                 key=lambda name: name.lower(),
             ),
         },
-        "enriched": sum(1 for g in games if g[FIELDS.index("rawg_slug")]),
+        "enriched": sum(1 for g in games if g[FIELDS.index("source")]),
     }
 
     if OUT.exists():
@@ -119,7 +121,7 @@ def main() -> int:
     size = (OUT / "games.json").stat().st_size
     print(
         f"Zbudowano {OUT.relative_to(ROOT)}: {len(games)} gier "
-        f"({payload['enriched']} z metadanymi RAWG), games.json {size // 1024} KB"
+        f"({payload['enriched']} z metadanymi), games.json {size // 1024} KB"
     )
     return 0
 

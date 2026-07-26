@@ -1,4 +1,4 @@
-name: Wzbogać dane z RAWG
+name: Wzbogać dane z API
 
 on:
   workflow_dispatch:
@@ -7,6 +7,12 @@ on:
         description: "Ile gier sprawdzić w tym przebiegu"
         required: false
         default: "300"
+      only:
+        description: "Użyj tylko jednego źródła"
+        type: choice
+        options: ["", "rawg", "igdb"]
+        required: false
+        default: ""
       retry_unmatched:
         description: "Ponowić próbę dla gier bez trafienia?"
         type: boolean
@@ -14,7 +20,7 @@ on:
         default: false
   schedule:
     # Co niedzielę o 5:00 UTC. Przy 300 grach na przebieg pełne pokrycie
-    # 5000 tytułów zajmuje ~4 miesiące i mieści się w darmowym limicie.
+    # 5000 tytułów zajmuje ~4 miesiące i mieści się w darmowych limitach.
     - cron: "0 5 * * 0"
 
 permissions:
@@ -35,28 +41,33 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Sprawdź, czy jest klucz
-        id: key
+      - name: Sprawdź, czy jest choć jedno źródło
+        id: keys
         env:
           RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+          IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
+          IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET }}
         run: |
-          if [ -z "$RAWG_API_KEY" ]; then
-            echo "::warning::Brak sekretu RAWG_API_KEY — pomijam wzbogacanie."
+          if [ -z "$RAWG_API_KEY" ] && { [ -z "$IGDB_CLIENT_ID" ] || [ -z "$IGDB_CLIENT_SECRET" ]; }; then
+            echo "::warning::Brak sekretów RAWG_API_KEY oraz IGDB_CLIENT_ID/SECRET — pomijam wzbogacanie."
             echo "ok=false" >> "$GITHUB_OUTPUT"
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Pobierz metadane
-        if: steps.key.outputs.ok == 'true'
+        if: steps.keys.outputs.ok == 'true'
         env:
           RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+          IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
+          IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET }}
           LIMIT: ${{ inputs.limit || '300' }}
+          ONLY: ${{ inputs.only && format('--only {0}', inputs.only) || '' }}
           RETRY: ${{ inputs.retry_unmatched && '--retry-unmatched' || '' }}
-        run: python3 scripts/enrich.py --limit "$LIMIT" $RETRY
+        run: python3 scripts/enrich.py --limit "$LIMIT" $ONLY $RETRY
 
       - name: Zapisz zmiany
-        if: steps.key.outputs.ok == 'true'
+        if: steps.keys.outputs.ok == 'true'
         run: |
           if git diff --quiet data/metadata.csv; then
             echo "Brak nowych metadanych."
@@ -65,5 +76,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/metadata.csv
-          git commit -m "Metadane z RAWG: $(date +%Y-%m-%d)"
+          git commit -m "Metadane gier: $(date +%Y-%m-%d)"
           git push

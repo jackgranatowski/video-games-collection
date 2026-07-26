@@ -242,6 +242,10 @@ input:focus, select:focus, summary:focus-visible {
 :root[data-theme="dark"] .tag.genre { color: #67e8f9; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.genre { color: #67e8f9; } }
 
+.tag.playtime { background: #7c3aed14; color: #6d28d9; font-variant-numeric: tabular-nums; }
+:root[data-theme="dark"] .tag.playtime { color: #c4b5fd; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.playtime { color: #c4b5fd; } }
+
 .tag.metacritic { font-weight: 650; font-variant-numeric: tabular-nums; }
 .mc-good  { background: #16a34a22; color: #15803d; }
 .mc-mixed { background: #ca8a0422; color: #a16207; }

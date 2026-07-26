@@ -3,7 +3,7 @@
 // Kolejnosc musi zgadzac sie z FIELDS w scripts/build_site.py.
 const FIELDS = ['title', 'year', 'status', 'priority', 'owned', 'platforms', 'vr',
   'rating', 'finished_year', 'hype', 'review', 'blog', 'tags', 'notes',
-  'genres', 'cover', 'metacritic', 'rawg_slug'];
+  'genres', 'cover', 'metacritic', 'playtime', 'source', 'source_slug'];
 
 const IDX = {};
 FIELDS.forEach((name, i) => { IDX[name] = i; });
@@ -23,6 +23,14 @@ const STATUS_LABEL = Object.fromEntries(STATUSES);
 const PRIORITY_LABEL = { high: 'priorytet', normal: 'na pewno', someday: 'kiedyś', skip: 'olewam' };
 const VR_LABEL = { yes: 'VR', required: 'VR wymagane', optional: 'VR opcjonalne' };
 const REVIEW_LABEL = { todo: 'recenzja do napisania', done: 'recenzja jest' };
+const SOURCE_URL = { rawg: 'https://rawg.io/games/', igdb: 'https://www.igdb.com/games/' };
+
+// Przedzialy dlugosci gry w godzinach - [min, max) w godzinach.
+const LENGTH_BUCKETS = {
+  short: [0, 10],
+  medium: [10, 30],
+  long: [30, Infinity],
+};
 
 // Statusy widoczne na start - lista wykluczen jest ogromna i zaslania resztę.
 const DEFAULT_STATUSES = STATUSES.map(([key]) => key).filter((key) => key !== 'not_interested');
@@ -42,6 +50,7 @@ const state = {
   yearFrom: '',
   yearTo: '',
   rating: '',
+  length: '',
   sort: 'title',
 };
 
@@ -78,7 +87,7 @@ function writeHash() {
   if (state.q) params.set('q', state.q);
   const statuses = [...state.statuses].sort().join(',');
   if (statuses !== [...DEFAULT_STATUSES].sort().join(',')) params.set('status', statuses);
-  ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating'].forEach((key) => {
+  ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating', 'length'].forEach((key) => {
     if (state[key]) params.set(key, state[key]);
   });
   if (state.yearFrom) params.set('from', state.yearFrom);
@@ -96,7 +105,7 @@ function readHash() {
     const list = params.get('status').split(',').filter(Boolean);
     state.statuses = new Set(list);
   }
-  ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating'].forEach((key) => {
+  ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating', 'length'].forEach((key) => {
     state[key] = params.get(key) || '';
   });
   state.yearFrom = params.get('from') || '';
@@ -147,6 +156,14 @@ function matches(game) {
   if (state.rating) {
     const rating = game[IDX.rating];
     if (rating === null || rating < +state.rating) return false;
+  }
+
+  if (state.length) {
+    const hours = game[IDX.playtime];
+    // Gry bez znanej dlugosci nie pasuja do zadnego przedzialu.
+    if (hours === null) return false;
+    const [min, max] = LENGTH_BUCKETS[state.length];
+    if (hours < min || hours >= max) return false;
   }
 
   return true;
@@ -213,10 +230,10 @@ function renderGame(game) {
 
   const title = document.createElement('div');
   title.className = 'game-title';
-  const slug = game[IDX.rawg_slug];
+  const slug = game[IDX.source_slug];
   if (slug) {
     const link = document.createElement('a');
-    link.href = `https://rawg.io/games/${slug}`;
+    link.href = SOURCE_URL[game[IDX.source]] + slug;
     link.target = '_blank';
     link.rel = 'noopener';
     link.textContent = game[IDX.title];
@@ -255,6 +272,9 @@ function renderGame(game) {
     meta.appendChild(badge(`MC ${metacritic}`, `tag metacritic mc-${level}`));
   }
   game[IDX.genres].forEach((genre) => meta.appendChild(badge(genre, 'tag genre')));
+
+  const playtime = game[IDX.playtime];
+  if (playtime) meta.appendChild(badge(`~${playtime}h`, 'tag playtime'));
   if (game[IDX.finished_year] !== null) {
     meta.appendChild(badge(`ukończone ${game[IDX.finished_year]}`, 'tag'));
   }
@@ -306,7 +326,7 @@ function apply() {
     renderChunk();
   }
 
-  const active = ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating', 'yearFrom', 'yearTo']
+  const active = ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating', 'length', 'yearFrom', 'yearTo']
     .filter((key) => state[key]).length;
   el('filter-count').textContent = active ? `(${active})` : '';
 
@@ -398,7 +418,7 @@ function bind() {
 
   const simple = {
     platform: 'platform', tag: 'tag', genre: 'genre', vr: 'vr', owned: 'owned',
-    priority: 'priority', rating: 'rating', sort: 'sort',
+    priority: 'priority', rating: 'rating', length: 'length', sort: 'sort',
   };
   Object.entries(simple).forEach(([id, key]) => {
     el(id).addEventListener('change', (event) => {
@@ -419,7 +439,7 @@ function bind() {
   el('reset').addEventListener('click', () => {
     state.q = '';
     state.statuses = new Set(DEFAULT_STATUSES);
-    ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating', 'yearFrom', 'yearTo']
+    ['platform', 'tag', 'genre', 'vr', 'owned', 'priority', 'rating', 'length', 'yearFrom', 'yearTo']
       .forEach((key) => { state[key] = ''; });
     state.sort = 'title';
     syncControls();
@@ -441,6 +461,7 @@ function syncControls() {
   el('owned').value = state.owned;
   el('priority').value = state.priority;
   el('rating').value = state.rating;
+  el('length').value = state.length;
   el('year-from').value = state.yearFrom;
   el('year-to').value = state.yearTo;
   el('sort').value = state.sort;
