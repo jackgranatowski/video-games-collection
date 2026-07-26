@@ -104,9 +104,26 @@ strona działa jak wcześniej, po prostu bez okładek.
 **RAWG:** klucz z https://rawg.io/apidocs (rejestracja mailem) → Settings → Secrets and
 variables → Actions → nowy sekret `RAWG_API_KEY`.
 
-**IGDB:** https://dev.twitch.tv/console/apps → Register Your Application (dowolna nazwa,
-OAuth Redirect URL `http://localhost`, kategoria Application Integration) → skopiuj
-Client ID i wygeneruj Client Secret → dwa sekrety: `IGDB_CLIENT_ID` i `IGDB_CLIENT_SECRET`.
+**IGDB:** https://dev.twitch.tv/console/apps → Register Your Application:
+
+| Pole | Wartość |
+|---|---|
+| Name | dowolna, ale unikalna w skali całego Twitcha |
+| OAuth Redirect URLs | `http://localhost` |
+| Category | Application Integration |
+| **Client Type** | **Confidential** |
+
+Potem skopiuj Client ID, kliknij New Secret → dwa sekrety w repo: `IGDB_CLIENT_ID`
+i `IGDB_CLIENT_SECRET`.
+
+Dwie rzeczy, które łatwo przeoczyć:
+
+- **Client Type musi być „Confidential"** — przy „Public" Twitch nie pozwoli wygenerować
+  Client Secret, a bez sekretu ten przepływ nie zadziała.
+- **Redirect URL nie jest przez nic używany.** Korzystamy z przepływu *client credentials*
+  (serwer–serwer): skrypt wysyła POST na `id.twitch.tv/oauth2/token` i dostaje token
+  w odpowiedzi. Żadnego przekierowania przeglądarki nie ma, więc ten adres nigdy nie
+  zostanie odpytany — pole trzeba wypełnić tylko dlatego, że formularz go wymaga.
 
 Potem Actions → **Wzbogać dane z API** → Run workflow.
 
