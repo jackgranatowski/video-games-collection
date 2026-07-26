@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kolekcja gier</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <h1>🎮 Kolekcja gier</h1>
+    <div class="topbar-actions">
+      <a class="btn-link" id="add-link" href="#" target="_blank" rel="noopener">+ Dodaj grę</a>
+      <button class="btn-icon" id="theme-toggle" type="button" aria-label="Zmień motyw">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="stats" id="stats" aria-label="Statystyki"></section>
+
+  <section class="controls">
+    <div class="search-row">
+      <input type="search" id="search" placeholder="Szukaj po tytule, platformie, notatce…" autocomplete="off" spellcheck="false">
+      <select id="sort" aria-label="Sortowanie">
+        <option value="title">Tytuł A→Z</option>
+        <option value="-title">Tytuł Z→A</option>
+        <option value="-year">Rok premiery: najnowsze</option>
+        <option value="year">Rok premiery: najstarsze</option>
+        <option value="-rating">Ocena: najwyższa</option>
+        <option value="-hype">Hype: najwyższy</option>
+        <option value="-finished_year">Ukończone: najnowsze</option>
+      </select>
+    </div>
+
+    <div class="chips" id="status-chips" role="group" aria-label="Status"></div>
+
+    <details class="more-filters" id="more-filters">
+      <summary>Więcej filtrów <span class="filter-count" id="filter-count"></span></summary>
+      <div class="filter-grid">
+        <label>Platforma
+          <select id="platform"><option value="">— wszystkie —</option></select>
+        </label>
+        <label>Tag
+          <select id="tag"><option value="">— wszystkie —</option></select>
+        </label>
+        <label>VR
+          <select id="vr">
+            <option value="">— wszystkie —</option>
+            <option value="any">Dowolne wsparcie VR</option>
+            <option value="required">Tylko VR (wymagane)</option>
+            <option value="optional">VR opcjonalne</option>
+            <option value="yes">VR dostępne</option>
+            <option value="no">Bez VR</option>
+          </select>
+        </label>
+        <label>Posiadane
+          <select id="owned">
+            <option value="">— wszystkie —</option>
+            <option value="yes">Mam</option>
+            <option value="no">Nie mam</option>
+          </select>
+        </label>
+        <label>Priorytet
+          <select id="priority">
+            <option value="">— wszystkie —</option>
+            <option value="high">Wysoki</option>
+            <option value="normal">Normalny</option>
+            <option value="someday">Kiedyś</option>
+            <option value="skip">Olewam</option>
+          </select>
+        </label>
+        <label>Rok premiery od
+          <input type="number" id="year-from" min="1950" max="2040" placeholder="np. 2015">
+        </label>
+        <label>Rok premiery do
+          <input type="number" id="year-to" min="1950" max="2040" placeholder="np. 2026">
+        </label>
+        <label>Ocena min.
+          <select id="rating">
+            <option value="">— dowolna —</option>
+            <option value="5">5</option>
+            <option value="4">4+</option>
+            <option value="3">3+</option>
+          </select>
+        </label>
+      </div>
+      <button type="button" class="btn-reset" id="reset">Wyczyść filtry</button>
+    </details>
+  </section>
+
+  <p class="result-count" id="result-count" role="status"></p>
+  <div id="results" class="results"></div>
+  <div id="sentinel" class="sentinel"></div>
+  <p class="end-note" id="end-note" hidden>To już wszystko.</p>
+</main>
+
+<footer>
+  <span id="generated"></span> ·
+  <a id="repo-link" href="#">źródło: data/games.csv</a>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
